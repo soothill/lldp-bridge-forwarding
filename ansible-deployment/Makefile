@@ -142,3 +142,8 @@ example-parallel: ## Example: Deploy in parallel
 
 # Default target
 .DEFAULT_GOAL := help
+
+.PHONY: debug-bridges
+debug-bridges:  ## Debug bridge detection on target hosts
+	@echo "Running bridge detection debug..."
+	ansible-playbook -i $(INVENTORY) debug-bridges.yml $(LIMIT_FLAG)

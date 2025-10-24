@@ -35,16 +35,28 @@
         success_msg: "Operating system check passed"
       tags: always
 
-    - name: Gather bridge interface information
+    - name: Gather bridge interface information (method 1 - sysfs)
       shell: |
-        for iface in /sys/class/net/*; do
-          iface_name=$(basename "${iface}")
-          if [[ -d "${iface}/bridge" ]]; then
-            echo "${iface_name}"
-          fi
-        done
-      register: bridge_interfaces
+        set -o pipefail
+        find /sys/class/net/*/bridge -type d 2>/dev/null | sed 's|/sys/class/net/||;s|/bridge||' || true
+      args:
+        executable: /bin/bash
+      register: bridge_interfaces_sysfs
       changed_when: false
+      failed_when: false
+      tags: always
+
+    - name: Gather bridge interface information (method 2 - ip command)
+      shell: ip -o link show type bridge | awk -F': ' '{print $2}' | cut -d'@' -f1
+      register: bridge_interfaces_ip
+      changed_when: false
+      failed_when: false
+      tags: always
+
+    - name: Combine bridge detection results
+      set_fact:
+        bridge_interfaces:
+          stdout_lines: "{{ (bridge_interfaces_sysfs.stdout_lines | default([]) + bridge_interfaces_ip.stdout_lines | default([])) | unique | sort }}"
       tags: always
 
     - name: Display discovered bridges

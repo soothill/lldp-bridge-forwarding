@@ -1,0 +1,81 @@
+---
+- name: Debug Bridge Detection
+  hosts: proxmox
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Check if /sys/class/net exists
+      stat:
+        path: /sys/class/net
+      register: sysnet
+    
+    - name: Show sysnet result
+      debug:
+        var: sysnet
+    
+    - name: List all network interfaces
+      shell: ls -la /sys/class/net/
+      register: net_interfaces
+      changed_when: false
+    
+    - name: Show all interfaces
+      debug:
+        var: net_interfaces.stdout_lines
+    
+    - name: Check for bridge subdirectories
+      shell: |
+        for iface in /sys/class/net/*; do
+          iface_name=$(basename "${iface}")
+          echo "Checking: ${iface_name}"
+          if [[ -d "${iface}/bridge" ]]; then
+            echo "  -> IS A BRIDGE: ${iface_name}"
+          else
+            echo "  -> not a bridge"
+          fi
+        done
+      register: bridge_check
+      changed_when: false
+    
+    - name: Show bridge check details
+      debug:
+        var: bridge_check.stdout_lines
+    
+    - name: Find bridges with find command
+      shell: find /sys/class/net/*/bridge -type d 2>/dev/null | sed 's|/sys/class/net/||;s|/bridge||'
+      register: find_bridges
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: Show find results
+      debug:
+        var: find_bridges.stdout_lines
+    
+    - name: Check bridge tools
+      shell: |
+        which brctl || echo "brctl not found"
+        which bridge || echo "bridge not found"
+      register: bridge_tools
+      changed_when: false
+    
+    - name: Show bridge tools
+      debug:
+        var: bridge_tools.stdout_lines
+    
+    - name: Try brctl show (if available)
+      shell: brctl show 2>/dev/null || echo "brctl not available"
+      register: brctl_output
+      changed_when: false
+    
+    - name: Show brctl output
+      debug:
+        var: brctl_output.stdout_lines
+    
+    - name: Try ip link show type bridge
+      shell: ip link show type bridge 2>/dev/null || echo "no bridges via ip link"
+      register: ip_bridges
+      changed_when: false
+    
+    - name: Show ip link bridges
+      debug:
+        var: ip_bridges.stdout_lines
