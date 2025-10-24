@@ -139,12 +139,12 @@
               done
           {% endif %}
               
-              if [[ ${#bridges[@]} -eq 0 ]]; then
+              if [[ ${{ '{#' }}bridges[@]} -eq 0 ]]; then
                   log_message "WARNING: No bridge interfaces found"
                   exit 1
               fi
               
-              log_message "Found ${#bridges[@]} bridge interface(s): ${bridges[*]}"
+              log_message "Found ${{ '{#' }}bridges[@]} bridge interface(s): ${bridges[*]}"
               
               # Enable LLDP forwarding on each bridge
               success_count=0
@@ -154,9 +154,9 @@
                   fi
               done
               
-              log_message "===== Configuration Complete: ${success_count}/${#bridges[@]} bridges configured ====="
-              
-              if [[ ${success_count} -eq ${#bridges[@]} ]]; then
+              log_message "===== Configuration Complete: ${success_count}/${{ '{#' }}bridges[@]} bridges configured ====="
+
+              if [[ ${success_count} -eq ${{ '{#' }}bridges[@]} ]]; then
                   exit 0
               else
                   exit 1
