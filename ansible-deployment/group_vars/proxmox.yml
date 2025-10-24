@@ -1,0 +1,59 @@
+---
+# LLDP Bridge Forwarding - Group Variables
+# Author: Darren Soothill (soothill.io)
+#
+# Place this file in: group_vars/proxmox.yml
+# Or: group_vars/all.yml to apply to all hosts
+
+# LLDP Configuration
+# ------------------
+
+# Target bridges (optional)
+# If not specified, the script will discover and configure all bridges
+# Uncomment and customize to target specific bridges:
+# lldp_target_bridges:
+#   - vmbr0
+#   - vmbr1
+#   - vmbr2
+
+# LLDP forwarding mask (default: 0x4000 for LLDP)
+# Advanced: You can enable additional protocols by combining masks:
+#   0x4000 - LLDP (01:80:c2:00:00:0e)
+#   0x8000 - Cisco Discovery Protocol (CDP)
+#   0xC000 - Both LLDP and CDP
+lldp_mask: "0x4000"
+
+# Installation paths
+lldp_script_name: enable-lldp-forwarding.sh
+lldp_service_name: lldp-bridge-forwarding
+lldp_install_path: /usr/local/bin
+lldp_log_file: /var/log/lldp-bridge-forward.log
+
+# Ansible connection settings
+# ---------------------------
+
+# Python interpreter (Proxmox typically uses Python 3)
+ansible_python_interpreter: /usr/bin/python3
+
+# SSH settings
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+# Become settings (run as root)
+ansible_become: yes
+ansible_become_method: sudo
+
+# Example: Different settings for different environments
+# -------------------------------------------------------
+
+# Development environment
+# lldp_target_bridges:
+#   - vmbr0
+# lldp_log_file: /var/log/lldp-bridge-forward-dev.log
+
+# Production environment
+# lldp_target_bridges:
+#   - vmbr0
+#   - vmbr1
+#   - vmbr2
+#   - vmbr10  # Management network
+# lldp_mask: "0xC000"  # Enable both LLDP and CDP

@@ -1,0 +1,27 @@
+---
+# Ansible Requirements
+# Author: Darren Soothill (soothill.io)
+#
+# This playbook uses only built-in Ansible modules, but this file is
+# included for future extensibility and best practices.
+#
+# Install with:
+#   ansible-galaxy collection install -r requirements.yml
+
+collections:
+  # Community general collection (useful utilities)
+  - name: community.general
+    version: ">=8.0.0"
+
+# No roles required for this playbook
+# roles: []
+
+# If you want to add additional functionality, consider:
+#
+# - name: ansible.posix
+#   version: ">=1.5.0"
+#   # Provides additional POSIX system modules
+#
+# - name: community.docker
+#   version: ">=3.0.0"
+#   # If you want to integrate with containerized LLDP daemons

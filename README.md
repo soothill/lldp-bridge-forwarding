@@ -1,232 +1,234 @@
-# LLDP Bridge Forwarding for Proxmox
+# Git Repository Update Package
 
-## Overview
+This package contains everything you need to update your local git repository at:
+`/Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding`
 
-This solution enables LLDP (Link Layer Discovery Protocol) forwarding on Linux bridges used by Proxmox VE. By default, Linux bridges filter out LLDP frames, preventing network topology discovery across bridge interfaces. This script configures bridges to forward LLDP packets and maintains the configuration across reboots.
-
-**Author:** Darren Soothill (soothill.io)
-
-## Background
-
-LLDP uses multicast MAC address `01:80:c2:00:00:0e` which is part of the reserved IEEE 802.1D range. Linux bridges filter these frames by default. To allow LLDP forwarding, we modify the bridge's `group_fwd_mask` parameter by setting bit 14 (0x4000).
-
-## Files Included
-
-- `enable-lldp-forwarding.sh` - Main script that configures bridges
-- `lldp-bridge-forwarding.service` - Systemd service for persistence
-- `install.sh` - Automated installation script
-- `README.md` - This documentation
-
-## Quick Installation
+## 🚀 Quick Update (3 Steps)
 
 ```bash
-# Make install script executable
-chmod +x install.sh
+# 1. Extract this package
+tar -xzf git-repo-update.tar.gz
+cd git-repo-update
 
-# Run as root
-sudo ./install.sh
+# 2. Run the sync script
+./sync-to-git-repo.sh
+
+# 3. Follow the prompts and commit
 ```
 
-The installation script will:
-1. Copy the main script to `/usr/local/bin/`
-2. Install the systemd service
-3. Enable the service to start on boot
-4. Start the service immediately
+## 📦 Package Contents
 
-## Manual Installation
+```
+git-repo-update/
+├── sync-to-git-repo.sh           ⭐ RUN THIS - Interactive sync script
+├── GIT_REPO_UPDATE_GUIDE.md      📖 Comprehensive update guide
+│
+├── standalone/                    🔧 All standalone files for git repo
+│   ├── enable-lldp-forwarding.sh
+│   ├── lldp-bridge-forwarding.service
+│   ├── install.sh
+│   ├── check-lldp-status.sh
+│   ├── README.md
+│   ├── LICENSE
+│   └── .gitignore
+│
+└── ansible-deployment/            🤖 Optional: Ansible files
+    ├── deploy-lldp-forwarding.yml
+    ├── inventory.yml
+    ├── ansible.cfg
+    ├── Makefile
+    ├── quick-start.sh
+    └── ... (all Ansible files)
+```
 
-If you prefer manual installation:
+## 📋 What Gets Updated
+
+### Core Repository (standalone/)
+These files will be synced to your git repository:
+- ✅ All existing standalone scripts (unchanged)
+- ✅ Updated README.md (now includes Ansible info)
+- ✅ LICENSE and .gitignore
+
+### Optional: Ansible Deployment
+If you want to add Ansible automation to your repository:
+- Copy files from `ansible-deployment/` to your repo
+- Creates a complete Ansible playbook structure
+- Allows users to choose between standalone or Ansible deployment
+
+## 🎯 Two Update Options
+
+### Option 1: Standalone Only (Simpler)
+
+Keep your repository focused on standalone scripts:
 
 ```bash
-# Copy the main script
-sudo cp enable-lldp-forwarding.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/enable-lldp-forwarding.sh
-
-# Copy the systemd service
-sudo cp lldp-bridge-forwarding.service /etc/systemd/system/
-sudo chmod 644 /etc/systemd/system/lldp-bridge-forwarding.service
-
-# Reload systemd and enable service
-sudo systemctl daemon-reload
-sudo systemctl enable lldp-bridge-forwarding.service
-sudo systemctl start lldp-bridge-forwarding.service
+# Run sync script and choose option 1
+./sync-to-git-repo.sh
 ```
 
-## Verification
+Your repository will contain:
+```
+lldp-bridge-forwarding/
+├── enable-lldp-forwarding.sh
+├── lldp-bridge-forwarding.service
+├── install.sh
+├── check-lldp-status.sh
+├── README.md
+├── LICENSE
+└── .gitignore
+```
 
-### Check Service Status
+### Option 2: Include Ansible (Recommended)
+
+Add Ansible automation alongside standalone scripts:
 
 ```bash
-sudo systemctl status lldp-bridge-forwarding
+# 1. Run sync script for standalone files
+./sync-to-git-repo.sh
+
+# 2. Copy Ansible files
+cd /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding
+cp -r ~/path/to/git-repo-update/ansible-deployment/* .
+
+# 3. Commit everything
+git add .
+git commit -m "Add Ansible deployment alongside standalone scripts"
 ```
 
-### View Logs
+Your repository will contain:
+```
+lldp-bridge-forwarding/
+├── Standalone scripts (existing)
+├── Ansible playbook files (new)
+├── Makefile
+├── group_vars/
+├── host_vars/
+└── Updated README.md
+```
+
+## 📝 Detailed Instructions
+
+### Using the Sync Script (Easiest)
 
 ```bash
-# Systemd journal
-sudo journalctl -u lldp-bridge-forwarding
-
-# Script log file
-sudo tail -f /var/log/lldp-bridge-forward.log
+cd git-repo-update
+./sync-to-git-repo.sh
 ```
 
-### Verify Bridge Configuration
+The script will:
+1. Locate your git repository
+2. Create a backup automatically
+3. Sync all files from standalone/
+4. Preserve your .git directory
+5. Show you what to commit
+
+### Manual Update
 
 ```bash
-# Check all bridges
-for bridge in /sys/class/net/*/bridge; do
-    iface=$(echo $bridge | cut -d'/' -f5)
-    mask=$(cat $bridge/group_fwd_mask)
-    echo "$iface: $mask"
-done
+# 1. Backup
+cp -r /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding \
+     /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding_backup
 
-# Check specific bridge (e.g., vmbr0)
-cat /sys/class/net/vmbr0/bridge/group_fwd_mask
+# 2. Sync files
+rsync -av --exclude='.git' \
+     standalone/ \
+     /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding/
+
+# 3. Optional: Add Ansible
+cp -r ansible-deployment/* \
+     /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding/
+
+# 4. Review and commit
+cd /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding
+git status
+git add .
+git commit -m "Update with Ansible deployment and documentation"
+git push origin main
 ```
 
-A value of `0x4000` or higher (with bit 14 set) indicates LLDP forwarding is enabled.
+## 🔍 What's New
 
-### Test LLDP Discovery
+### Updated Files:
+- **README.md** - Now documents both standalone and Ansible deployment options
 
-If you have `lldpd` or `lldpctl` installed:
+### New Ansible Files (if you choose to add them):
+- **deploy-lldp-forwarding.yml** - Complete Ansible playbook
+- **Makefile** - Convenient deployment commands (make deploy, make verify, etc.)
+- **quick-start.sh** - Interactive Ansible setup
+- **inventory.yml** - Host configuration template
+- **ansible.cfg** - Ansible settings
+- **requirements.yml** - Ansible dependencies
+- **group_vars/** - Group-level configuration
+- **host_vars/** - Per-host configuration examples
+
+## ✅ Post-Update Checklist
+
+After syncing:
 
 ```bash
-# Install lldpd if needed
-sudo apt-get install lldpd
+cd /Users/darrensoothill/Documents/GitHub/lldp-bridge-forwarding
 
-# View LLDP neighbors
-sudo lldpctl
+# 1. Check what changed
+git status
+git diff
+
+# 2. Verify scripts are executable
+ls -la *.sh
+
+# 3. If you added Ansible, test it
+ansible-playbook deploy-lldp-forwarding.yml --syntax-check
+make help
+
+# 4. Commit your changes
+git add .
+git commit -m "Add Ansible deployment and comprehensive documentation"
+
+# 5. Push to remote
+git push origin main
 ```
 
-## Compatibility
+## 📖 Full Documentation
 
-- **Proxmox VE:** 7.x, 8.x and newer
-- **Linux Kernel:** Any recent kernel with bridge support
-- **Bridge Types:** Works with all Linux bridge interfaces (vmbr0, vmbr1, etc.)
+For comprehensive instructions, see:
+- **[GIT_REPO_UPDATE_GUIDE.md](GIT_REPO_UPDATE_GUIDE.md)** - Complete guide with troubleshooting
 
-## How It Works
-
-The script performs the following operations:
-
-1. Scans `/sys/class/net/` for bridge interfaces
-2. Reads the current `group_fwd_mask` for each bridge
-3. Performs a bitwise OR with `0x4000` to enable LLDP forwarding
-4. Writes the new mask back to the bridge
-5. Verifies the configuration was applied successfully
-6. Logs all operations to `/var/log/lldp-bridge-forward.log`
-
-The systemd service ensures the script runs:
-- At system boot (after network initialization)
-- After Proxmox cluster services start
-- Automatically restarts on failure
-
-## Troubleshooting
-
-### Service Fails to Start
-
-Check the journal for errors:
-```bash
-sudo journalctl -u lldp-bridge-forwarding -n 50
-```
-
-### LLDP Still Not Working
-
-1. Verify the mask is set correctly:
-   ```bash
-   cat /sys/class/net/vmbr0/bridge/group_fwd_mask
-   ```
-
-2. Check if LLDP daemon is running on connected devices
-
-3. Verify physical connectivity and switch configuration
-
-4. Use tcpdump to capture LLDP frames:
-   ```bash
-   sudo tcpdump -i vmbr0 -e ether proto 0x88cc
-   ```
-
-### Configuration Lost After Reboot
-
-Verify the service is enabled:
-```bash
-sudo systemctl is-enabled lldp-bridge-forwarding
-```
-
-If not enabled:
-```bash
-sudo systemctl enable lldp-bridge-forwarding
-```
-
-## Advanced Configuration
-
-### Applying to Specific Bridges Only
-
-Edit `/usr/local/bin/enable-lldp-forwarding.sh` and modify the main function:
-
-```bash
-# Replace the automatic bridge detection with:
-bridges=("vmbr0" "vmbr1")  # Specify your bridges here
-```
-
-### Different Forward Masks
-
-To enable forwarding of other protocols, you can modify the `LLDP_MASK` variable. Common values:
-
-- `0x4000` - LLDP (01:80:c2:00:00:0e)
-- `0x8000` - Cisco protocols
-- `0xC000` - Both LLDP and Cisco
-
-### Integration with Proxmox Network Config
-
-For Proxmox-native integration, you can add the following to `/etc/network/interfaces`:
+## 🎓 Suggested Commit Message
 
 ```
-auto vmbr0
-iface vmbr0 inet static
-    address 192.168.1.1/24
-    bridge-ports eno1
-    bridge-stp off
-    bridge-fd 0
-    post-up echo 0x4000 > /sys/class/net/vmbr0/bridge/group_fwd_mask
+Add Ansible deployment and comprehensive documentation
+
+- Add complete Ansible playbook for multi-host deployment
+- Add Makefile with convenient deployment targets  
+- Add interactive quick-start scripts
+- Add group_vars and host_vars for flexible configuration
+- Update README with both standalone and Ansible options
+- Maintain backward compatibility with existing standalone scripts
+
+Users can now choose between:
+1. Standalone installation (existing method)
+2. Ansible automation (new method for multi-host)
 ```
 
-However, using the systemd service is recommended as it handles all bridges automatically.
+## 🆘 Need Help?
 
-## Uninstallation
+1. Read **GIT_REPO_UPDATE_GUIDE.md** for detailed instructions
+2. The sync script includes a dry-run option (option 3)
+3. Always creates backups automatically
+4. All operations are safe and reversible
 
-To remove the LLDP forwarding configuration:
+## 🌐 After Pushing
 
-```bash
-# Stop and disable the service
-sudo systemctl stop lldp-bridge-forwarding
-sudo systemctl disable lldp-bridge-forwarding
+Update your GitHub repository:
 
-# Remove files
-sudo rm /usr/local/bin/enable-lldp-forwarding.sh
-sudo rm /etc/systemd/system/lldp-bridge-forwarding.service
-sudo rm /var/log/lldp-bridge-forward.log
-
-# Reload systemd
-sudo systemctl daemon-reload
+**Description:**
+```
+Enable LLDP forwarding on Proxmox bridge interfaces with persistent configuration. 
+Includes both standalone scripts and Ansible automation for multi-host deployment.
 ```
 
-Bridge masks will revert to default after reboot.
+**Topics:**
+`proxmox` `lldp` `networking` `linux-bridge` `systemd` `ansible` `automation` `infrastructure`
 
-## Technical References
+---
 
-- [Linux Bridge Documentation](https://www.kernel.org/doc/Documentation/networking/bridge.txt)
-- [IEEE 802.1AB LLDP Standard](https://standards.ieee.org/standard/802_1AB-2016.html)
-- [Proxmox VE Network Configuration](https://pve.proxmox.com/wiki/Network_Configuration)
-
-## License
-
-Copyright (c) 2025 Darren Soothill
-
-This script is provided as-is without warranty. Use at your own risk.
-
-## Author
-
-**Darren Soothill**  
-Website: [soothill.io](https://soothill.io)
-
-For issues or contributions, please refer to the documentation at soothill.io.
+**Ready?** Run `./sync-to-git-repo.sh` to get started! 🚀

@@ -1,0 +1,64 @@
+---
+# LLDP Bridge Forwarding - Host Variables Example
+# Author: Darren Soothill (soothill.io)
+#
+# Place this file in: host_vars/pve01.yml
+# (Replace 'pve01' with your actual hostname from inventory)
+
+# This example shows how to configure LLDP forwarding differently
+# for specific hosts when they have unique requirements
+
+# Example 1: Standard configuration with specific bridges
+# -------------------------------------------------------
+# lldp_target_bridges:
+#   - vmbr0    # Management network
+#   - vmbr1    # VM network
+
+# Example 2: Enable both LLDP and CDP
+# ------------------------------------
+# lldp_mask: "0xC000"
+# lldp_target_bridges:
+#   - vmbr0
+#   - vmbr1
+
+# Example 3: Custom paths and logging
+# ------------------------------------
+# lldp_log_file: /var/log/lldp-pve01.log
+# lldp_service_name: lldp-bridge-pve01
+
+# Example 4: All bridges (default behavior)
+# ------------------------------------------
+# Leave lldp_target_bridges undefined to configure all bridges automatically
+
+# Example 5: Single bridge only
+# ------------------------------
+# lldp_target_bridges:
+#   - vmbr0
+
+# Real-world example: Edge site with limited bridges
+# ---------------------------------------------------
+lldp_target_bridges:
+  - vmbr0  # Uplink to core network
+
+# Real-world example: Core datacenter with multiple networks
+# -----------------------------------------------------------
+# lldp_target_bridges:
+#   - vmbr0   # Management
+#   - vmbr1   # Production VMs
+#   - vmbr2   # Storage network
+#   - vmbr10  # DMZ
+
+# Real-world example: Cisco-heavy environment
+# --------------------------------------------
+# lldp_mask: "0xC000"  # Enable both LLDP and CDP
+# lldp_target_bridges:
+#   - vmbr0
+#   - vmbr1
+
+# Connection overrides (if this host requires different settings)
+# ----------------------------------------------------------------
+# ansible_host: 192.168.1.100
+# ansible_user: admin
+# ansible_become_user: root
+# ansible_port: 2222
+# ansible_ssh_private_key_file: ~/.ssh/pve01_key

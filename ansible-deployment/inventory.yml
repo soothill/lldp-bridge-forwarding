@@ -1,0 +1,68 @@
+---
+# LLDP Bridge Forwarding - Ansible Inventory
+# Author: Darren Soothill (soothill.io)
+
+# Single Proxmox host example
+proxmox:
+  hosts:
+    pve01:
+      ansible_host: 192.168.1.10
+      ansible_user: root
+      ansible_ssh_private_key_file: ~/.ssh/id_rsa
+
+# Multiple Proxmox hosts example
+# proxmox:
+#   hosts:
+#     pve01:
+#       ansible_host: 192.168.1.10
+#       ansible_user: root
+#     pve02:
+#       ansible_host: 192.168.1.11
+#       ansible_user: root
+#     pve03:
+#       ansible_host: 192.168.1.12
+#       ansible_user: root
+#   vars:
+#     ansible_ssh_private_key_file: ~/.ssh/id_rsa
+#     ansible_python_interpreter: /usr/bin/python3
+
+# Proxmox cluster with groups
+# all:
+#   children:
+#     proxmox_cluster1:
+#       hosts:
+#         pve01:
+#           ansible_host: 10.0.1.10
+#         pve02:
+#           ansible_host: 10.0.1.11
+#         pve03:
+#           ansible_host: 10.0.1.12
+#       vars:
+#         lldp_target_bridges:
+#           - vmbr0
+#           - vmbr1
+#     
+#     proxmox_cluster2:
+#       hosts:
+#         pve04:
+#           ansible_host: 10.0.2.10
+#         pve05:
+#           ansible_host: 10.0.2.11
+#       vars:
+#         lldp_target_bridges:
+#           - vmbr0
+#           - vmbr2
+#           - vmbr3
+#   
+#   vars:
+#     ansible_user: root
+#     ansible_ssh_private_key_file: ~/.ssh/proxmox_key
+#     ansible_python_interpreter: /usr/bin/python3
+
+# Variable definitions (can be overridden per host/group)
+#   lldp_target_bridges: List of specific bridges to configure (optional)
+#                        If not set, all bridges will be configured
+#   Example:
+#     lldp_target_bridges:
+#       - vmbr0
+#       - vmbr1

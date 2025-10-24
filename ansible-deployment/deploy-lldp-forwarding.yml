@@ -1,0 +1,329 @@
+---
+# LLDP Bridge Forwarding - Ansible Deployment Playbook
+# Author: Darren Soothill (soothill.io)
+#
+# This playbook deploys LLDP bridge forwarding configuration to Proxmox hosts
+# Usage:
+#   ansible-playbook -i inventory.yml deploy-lldp-forwarding.yml
+#   ansible-playbook -i inventory.yml deploy-lldp-forwarding.yml --tags uninstall
+
+- name: Deploy LLDP Bridge Forwarding on Proxmox Hosts
+  hosts: proxmox
+  become: yes
+  gather_facts: yes
+
+  vars:
+    lldp_script_name: enable-lldp-forwarding.sh
+    lldp_service_name: lldp-bridge-forwarding
+    lldp_install_path: /usr/local/bin
+    lldp_log_file: /var/log/lldp-bridge-forward.log
+    lldp_mask: "0x4000"
+
+  tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          Deploying LLDP Bridge Forwarding to: {{ inventory_hostname }}
+          Target bridges: {{ lldp_target_bridges | default('all bridges') }}
+      tags: always
+
+    - name: Check if running on Linux
+      assert:
+        that:
+          - ansible_system == "Linux"
+        fail_msg: "This playbook only works on Linux systems"
+        success_msg: "Operating system check passed"
+      tags: always
+
+    - name: Gather bridge interface information
+      shell: |
+        for iface in /sys/class/net/*; do
+          iface_name=$(basename "${iface}")
+          if [[ -d "${iface}/bridge" ]]; then
+            echo "${iface_name}"
+          fi
+        done
+      register: bridge_interfaces
+      changed_when: false
+      tags: always
+
+    - name: Display discovered bridges
+      debug:
+        msg: "Found bridges: {{ bridge_interfaces.stdout_lines }}"
+      when: bridge_interfaces.stdout_lines | length > 0
+      tags: always
+
+    - name: Warn if no bridges found
+      debug:
+        msg: "WARNING: No bridge interfaces found on {{ inventory_hostname }}"
+      when: bridge_interfaces.stdout_lines | length == 0
+      tags: always
+
+    # Installation tasks
+    - name: Create LLDP forwarding script
+      copy:
+        content: |
+          #!/bin/bash
+          #
+          # LLDP Bridge Forwarding Script for Proxmox
+          # Author: Darren Soothill (soothill.io)
+          # 
+          # This script enables LLDP forwarding on Linux bridges by modifying
+          # the group_fwd_mask parameter. LLDP uses multicast address 01:80:c2:00:00:0e
+          # which is normally filtered by bridges.
+          #
+
+          set -euo pipefail
+
+          # Logging setup
+          LOG_FILE="{{ lldp_log_file }}"
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+          log_message() {
+              echo "[${TIMESTAMP}] $1" | tee -a "${LOG_FILE}"
+          }
+
+          # LLDP forwarding requires bit 14 (0x4000) to be set in group_fwd_mask
+          # This allows forwarding of frames with destination MAC 01:80:c2:00:00:0e
+          LLDP_MASK={{ lldp_mask }}
+
+          # Function to enable LLDP forwarding on a single bridge
+          enable_lldp_on_bridge() {
+              local bridge=$1
+              local current_mask
+              local new_mask
+              
+              if [[ ! -d "/sys/class/net/${bridge}/bridge" ]]; then
+                  log_message "WARNING: ${bridge} is not a bridge interface, skipping"
+                  return 1
+              fi
+              
+              # Get current mask
+              current_mask=$(cat "/sys/class/net/${bridge}/bridge/group_fwd_mask" 2>/dev/null || echo "0x0")
+              
+              # Calculate new mask (OR operation to preserve existing bits)
+              new_mask=$(printf "0x%x" $((current_mask | LLDP_MASK)))
+              
+              # Apply the new mask
+              echo "${new_mask}" > "/sys/class/net/${bridge}/bridge/group_fwd_mask"
+              
+              # Verify the change
+              local verified_mask
+              verified_mask=$(cat "/sys/class/net/${bridge}/bridge/group_fwd_mask")
+              
+              if [[ $((verified_mask & LLDP_MASK)) -eq $((LLDP_MASK)) ]]; then
+                  log_message "SUCCESS: LLDP forwarding enabled on ${bridge} (mask: ${verified_mask})"
+                  return 0
+              else
+                  log_message "ERROR: Failed to enable LLDP forwarding on ${bridge}"
+                  return 1
+              fi
+          }
+
+          # Main execution
+          main() {
+              log_message "===== Starting LLDP Bridge Forwarding Configuration ====="
+              
+          {% if lldp_target_bridges is defined and lldp_target_bridges | length > 0 %}
+              # Use specified bridges
+              bridges=({% for bridge in lldp_target_bridges %}"{{ bridge }}" {% endfor %})
+              log_message "Using specified bridges: ${bridges[*]}"
+          {% else %}
+              # Find all bridge interfaces
+              bridges=()
+              for iface in /sys/class/net/*; do
+                  iface_name=$(basename "${iface}")
+                  if [[ -d "${iface}/bridge" ]]; then
+                      bridges+=("${iface_name}")
+                  fi
+              done
+          {% endif %}
+              
+              if [[ ${#bridges[@]} -eq 0 ]]; then
+                  log_message "WARNING: No bridge interfaces found"
+                  exit 1
+              fi
+              
+              log_message "Found ${#bridges[@]} bridge interface(s): ${bridges[*]}"
+              
+              # Enable LLDP forwarding on each bridge
+              success_count=0
+              for bridge in "${bridges[@]}"; do
+                  if enable_lldp_on_bridge "${bridge}"; then
+                      ((success_count++))
+                  fi
+              done
+              
+              log_message "===== Configuration Complete: ${success_count}/${#bridges[@]} bridges configured ====="
+              
+              if [[ ${success_count} -eq ${#bridges[@]} ]]; then
+                  exit 0
+              else
+                  exit 1
+              fi
+          }
+
+          # Run main function
+          main
+        dest: "{{ lldp_install_path }}/{{ lldp_script_name }}"
+        mode: '0755'
+        owner: root
+        group: root
+      notify: restart lldp service
+      tags: install
+
+    - name: Create systemd service file
+      copy:
+        content: |
+          [Unit]
+          Description=Enable LLDP Forwarding on Bridge Interfaces
+          Documentation=https://soothill.io
+          After=network-online.target systemd-networkd.service
+          Wants=network-online.target
+          # Ensure this runs after Proxmox network configuration
+          After=networking.service pve-cluster.service
+
+          [Service]
+          Type=oneshot
+          ExecStart={{ lldp_install_path }}/{{ lldp_script_name }}
+          RemainAfterExit=yes
+          StandardOutput=journal
+          StandardError=journal
+
+          # Restart on failure
+          Restart=on-failure
+          RestartSec=10s
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: "/etc/systemd/system/{{ lldp_service_name }}.service"
+        mode: '0644'
+        owner: root
+        group: root
+      notify:
+        - reload systemd
+        - restart lldp service
+      tags: install
+
+    - name: Ensure systemd is reloaded
+      systemd:
+        daemon_reload: yes
+      tags: install
+
+    - name: Enable LLDP forwarding service
+      systemd:
+        name: "{{ lldp_service_name }}.service"
+        enabled: yes
+        state: started
+      register: service_status
+      tags: install
+
+    - name: Wait for service to complete
+      pause:
+        seconds: 2
+      when: service_status.changed
+      tags: install
+
+    - name: Check service status
+      systemd:
+        name: "{{ lldp_service_name }}.service"
+      register: service_info
+      tags: install, verify
+
+    - name: Display service status
+      debug:
+        msg: |
+          Service Status: {{ service_info.status.ActiveState }}
+          Service Enabled: {{ service_info.status.UnitFileState }}
+      tags: install, verify
+
+    - name: Verify LLDP forwarding is enabled on bridges
+      shell: |
+        for bridge in {{ bridge_interfaces.stdout_lines | join(' ') }}; do
+          if [[ -d "/sys/class/net/${bridge}/bridge" ]]; then
+            mask=$(cat "/sys/class/net/${bridge}/bridge/group_fwd_mask" 2>/dev/null || echo "0x0")
+            if [[ $((mask & {{ lldp_mask }})) -eq $(({{ lldp_mask }})) ]]; then
+              echo "${bridge}: ENABLED (${mask})"
+            else
+              echo "${bridge}: DISABLED (${mask})"
+            fi
+          fi
+        done
+      register: verification_result
+      changed_when: false
+      when: bridge_interfaces.stdout_lines | length > 0
+      tags: install, verify
+
+    - name: Display verification results
+      debug:
+        var: verification_result.stdout_lines
+      when: bridge_interfaces.stdout_lines | length > 0
+      tags: install, verify
+
+    - name: Check log file
+      stat:
+        path: "{{ lldp_log_file }}"
+      register: log_file_stat
+      tags: install, verify
+
+    - name: Display recent log entries
+      shell: tail -n 10 "{{ lldp_log_file }}"
+      register: log_output
+      changed_when: false
+      when: log_file_stat.stat.exists
+      tags: install, verify
+
+    - name: Show log output
+      debug:
+        var: log_output.stdout_lines
+      when: log_file_stat.stat.exists
+      tags: install, verify
+
+    # Uninstallation tasks
+    - name: Stop LLDP forwarding service
+      systemd:
+        name: "{{ lldp_service_name }}.service"
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+      tags: never, uninstall
+
+    - name: Remove systemd service file
+      file:
+        path: "/etc/systemd/system/{{ lldp_service_name }}.service"
+        state: absent
+      notify: reload systemd
+      tags: never, uninstall
+
+    - name: Remove LLDP forwarding script
+      file:
+        path: "{{ lldp_install_path }}/{{ lldp_script_name }}"
+        state: absent
+      tags: never, uninstall
+
+    - name: Remove log file
+      file:
+        path: "{{ lldp_log_file }}"
+        state: absent
+      tags: never, uninstall
+
+    - name: Reload systemd after uninstall
+      systemd:
+        daemon_reload: yes
+      tags: never, uninstall
+
+    - name: Display uninstall completion message
+      debug:
+        msg: "LLDP Bridge Forwarding has been uninstalled from {{ inventory_hostname }}"
+      tags: never, uninstall
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart lldp service
+      systemd:
+        name: "{{ lldp_service_name }}.service"
+        state: restarted
+      when: service_status is defined and not service_status.changed
