@@ -47,7 +47,10 @@
       tags: always
 
     - name: Gather bridge interface information (method 2 - ip command)
-      shell: ip -o link show type bridge | awk -F': ' '{print $2}' | cut -d'@' -f1
+      shell: |
+        ip -o link show type bridge | awk -F': ' '{print $2}' | cut -d'@' -f1
+      args:
+        executable: /bin/bash
       register: bridge_interfaces_ip
       changed_when: false
       failed_when: false
