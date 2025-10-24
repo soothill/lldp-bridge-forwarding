@@ -1,0 +1,21 @@
+[Unit]
+Description=Enable LLDP Forwarding on Bridge Interfaces
+Documentation=https://soothill.io
+After=network-online.target systemd-networkd.service
+Wants=network-online.target
+# Ensure this runs after Proxmox network configuration
+After=networking.service pve-cluster.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/enable-lldp-forwarding.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
